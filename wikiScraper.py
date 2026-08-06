@@ -71,9 +71,30 @@ def find_templates(wikitext, template_name):
 
 
 def clean_item_name(name):
-    """Strip ref tags and trailing '; note' junk from an item name."""
+    """Strip ref tags, handle enchant notation, and clean junk from an item name."""
     name = re.sub(r"<ref.*?(</ref>|/>)", "", name, flags=re.DOTALL)
+    name = name.strip("[]")
+
+    enchant_match = re.search(r"&([^&]+)&", name)
+    if enchant_match:
+        base = name.split("&")[0].strip()
+        return f"{base} ({enchant_match.group(1).strip()})"
+
+    name = name.split("!")[0]
+    name = re.split(r"\[\[", name)[0]
     return name.split(";")[0].strip()
+
+
+def clean_value(value):
+    """Strip HTML spans, refs, and unresolved templates from a field value."""
+    value = re.sub(r"<ref.*?(</ref>|/>)", "", value, flags=re.DOTALL)
+    value = re.sub(r"<span[^>]*>(.*?)</span>", r"\1", value)  # drop tags
+    value = re.sub(r"\{\{InfoNeeded\}\}", "", value)
+    value = re.sub(r"\{\{bc\}\}", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\{\{Overline.*", "", value)
+    value = re.sub(r"\{\{Odds.*", "", value)
+    value = value.strip()
+    return value or None
 
 
 def drop_table(wikitext):
@@ -86,15 +107,14 @@ def drop_table(wikitext):
             if "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            value = re.sub(r"<ref.*?(</ref>|/>)", "", value, flags=re.DOTALL)
-            fields[key.strip()] = value.strip()
+            fields[key.strip()] = clean_value(value)
 
         drops = []
         for key in fields:
             if not re.fullmatch(r"drop\d*", key):
                 continue
             suffix = key[len("drop"):]
-            item = clean_item_name(fields.get(f"drop{suffix}", ""))
+            item = clean_item_name(fields.get(f"drop{suffix}") or "")
             if not item:
                 continue
             drops.append({
