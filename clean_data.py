@@ -25,13 +25,9 @@ def clean(obj):
         return [clean(x) for x in obj]
 
     if isinstance(obj, str):
-        # Decode HTML entities
         obj = html.unescape(obj)
-
-        # Remove HTML line breaks
         obj = obj.replace("<br>", " ")
 
-        # Normalize rarity names
         if obj in RARITY_MAP:
             obj = RARITY_MAP[obj]
 
@@ -43,9 +39,8 @@ def clean(obj):
 with open("loot_table.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
-# Clean all strings in the JSON
-data = clean(data)
 
+data = clean(data)
 # Keep only entries that have at least one non-empty drop table
 filtered = [
     entry for entry in data
